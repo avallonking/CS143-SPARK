@@ -19,8 +19,7 @@ package org.apache.spark.sql.execution
 
 
 import scala.collection.mutable.ArrayBuffer
-
-import org.apache.spark.{SparkEnv, HashPartitioner, SparkConf}
+import org.apache.spark.{HashPartitioner, SparkConf, SparkEnv}
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
 import org.apache.spark.shuffle.sort.SortShuffleManager
@@ -99,18 +98,47 @@ case class PartitionProject(projectList: Seq[Expression], child: SparkPlan) exte
     val keyGenerator = CS143Utils.getNewProjection(projectList, child.output)
 
     /* IMPLEMENT THIS METHOD */
+    val partitions: DiskHashedRelation = DiskHashedRelation(input, keyGenerator)
+    val partitioniter: Iterator[DiskPartition] = partitions.getIterator()
+    val itergenerator: (Iterator[Row] => Iterator[Row]) = CS143Utils.generateCachingIterator(projectList, child.output)
+    var currentpartition: DiskPartition = null
+    var currentiter: Iterator[Row]  = null
 
     new Iterator[Row] {
+
+//      val partitionIterator = DiskHashedRelation(input, keyGenerator).getIterator()
+//      var iter: Iterator[Row] = null
+
       def hasNext() = {
         /* IMPLEMENT THIS METHOD */
-        false
+//        if (iter != null && iter.hasNext)
+//          true
+//        else
+//          fetchNextPartition()
+        if(currentiter == null || !currentiter.hasNext) {
+          if(!fetchNextPartition()) {
+            false
+          } else {
+            currentiter = currentpartition.getData()
+            currentiter.hasNext
+          }
+        } else {
+          true
+        }
       }
 
       def next() = {
         /* IMPLEMENT THIS METHOD */
-        null
+//        if (hasNext())
+//          iter.next()
+//        else
+//          null
+        currentiter.next()
+
       }
 
+//      var partition: DiskPartition = null
+//      var cacheIterator: (Iterator[Row] => Iterator[Row]) = null
       /**
         * This fetches the next partition over which we will iterate or returns false if there are no more partitions
         * over which we can iterate.
@@ -119,7 +147,22 @@ case class PartitionProject(projectList: Seq[Expression], child: SparkPlan) exte
         */
       private def fetchNextPartition(): Boolean  = {
         /* IMPLEMENT THIS METHOD */
-        false
+
+//        while (partitionIterator.hasNext) {
+//          partition = partitionIterator.next()
+//          cacheIterator = CS143Utils.generateCachingIterator(projectList, output)
+//          iter = cacheIterator(partition.getData())
+//          if (iter.hasNext)
+//            true
+//        }
+//        false
+        if(partitioniter.hasNext) {
+          currentpartition = partitioniter.next()
+          true
+        } else {
+          partitions.closeAllPartitions()
+          false
+        }
       }
     }
   }
